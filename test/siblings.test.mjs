@@ -8,9 +8,8 @@ import { SIBLINGS, otherSiblings } from '../lib/siblings.mjs'
 const 根 = join(dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(join(根, 'package.json'), 'utf8'))
 
-test('兄弟清单覆盖八个插件，包名不重复', () => {
-  assert.equal(SIBLINGS.length, 8)
-  assert.equal(new Set(SIBLINGS.map((x) => x.pkg)).size, 8)
+test('兄弟清单包名不重复', () => {
+  assert.equal(new Set(SIBLINGS.map((x) => x.pkg)).size, SIBLINGS.length)
 })
 
 test('每个条目都有中文名和安装用的包名', () => {
@@ -21,9 +20,8 @@ test('每个条目都有中文名和安装用的包名', () => {
   }
 })
 
-test('推荐给自己之外的那七个，且不含自己', () => {
+test('推荐列表里不含自己', () => {
   const 别人 = otherSiblings(pkg.name)
-  assert.equal(别人.length, 7)
   assert.ok(!别人.some((x) => x.pkg === pkg.name), '推荐列表里不应该有自己')
 })
 

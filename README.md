@@ -47,11 +47,35 @@ dsh plugin --profile desktop add https://github.com/bailu974/deepseek-dsh-person
 
 ### 它怎么工作
 
-1. 读当天的 SnowLuma 日志（`snowluma-YYYY-MM-DD.log`），只取**别人说的话**
-   - 配了 `bridgeConfigPath` 的话，只取 `allow.groups` / `allow.private` 白名单里的会话
+1. **从多个渠道收片段**（见下面的「素材渠道」）
 2. 片段少于 `minSnippets` 条 → 当天不写（不值得写）
 3. 调一次 headless 模型，按硬规则写最多 `maxLines` 行
 4. 追加到 `journalDir/YYYY-MM.md`
+
+### 素材渠道（sources）
+
+日记**不绑死某个渠道**：任何能产出「当天片段」的东西都能注册成源。
+
+```json
+"sources": [
+  { "type": "snowluma-log", "dir": "E:/SnowLuma/logs", "bridgeConfigPath": "E:/ai/qq-bridge/config.json", "limit": 40 },
+  { "type": "external", "adapter": "bili-journal", "label": "B站" },
+  { "type": "inbox", "dir": "C:/Users/你/.dsh/work-inbox", "label": "工作", "markerOnly": true, "enabled": false }
+]
+```
+
+| 类型 | 读什么 | 说明 |
+|---|---|---|
+| `snowluma-log` | `snowluma-YYYY-MM-DD.log` | QQ 聊天；可配 `bridgeConfigPath` 走白名单 |
+| `external` | distill 的外部适配器（B站手账等） | `adapter` 填适配器 id，按日期取当天条目 |
+| `inbox` | `<dir>/YYYY-MM-DD.md` 或 `<dir>/YYYY-MM.md` 的分节 | 人工/半自动手记 |
+
+`inbox` 的两个开关：
+
+- `markerOnly: true` —— **只取 `<!-- diary -->` 与 `<!-- /diary -->` 之间的内容**。适合「干活」这种日常内容很杂、只有几条想留下的场景
+- `enabled: false` —— 默认关，需要时再开
+
+不配 `sources` 时行为不变：只读 `snowlumaLogDir`。
 
 硬规则写在代码里，不给模型自由发挥：
 

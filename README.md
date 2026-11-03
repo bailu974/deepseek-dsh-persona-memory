@@ -154,6 +154,16 @@ node journal-cli.mjs --config my.json   # 用指定配置
 
 > Windows 上注意：任务计划里用 `wscript` 包一层隐藏启动，否则 `cmd` 窗口一关进程就被 `Ctrl+C` 杀掉（结果码 `0xC000013A`）。
 
+### 排错
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| `ACCOUNT_SIGN_IN_REQUIRED` / `MISSING_CREDENTIAL` | headless 找不到账号凭证 | **`DSH_HOME` 必须是真实的 `<用户>/.dsh`**，不能用临时/隔离目录跑；也不要依赖 `DEEPSEEK_API_KEY`（那是另一条鉴权路） |
+| 日志里「只有 0 条可用片段，跳过」 | 当天没有素材 | 检查 `sources` 的 `dir` 对不对；QQ 那路要有 `snowluma-YYYY-MM-DD.log` |
+| `inbox` 源一条都没读进来 | 开了 `markerOnly` 但没写标记 | 内容要包在 `<!-- diary -->` 与 `<!-- /diary -->` 之间 |
+| 改了 `config.json` 不生效 | 老版本的问题 | 现在每次 tick 都会重读；仍然不生效就检查文件是否有 BOM（已做兼容） |
+| 装不上 / 「下载没发现」 | 本机没装 git，或仓库根目录没有 `package.json` | 用 `link:` 本地安装；fork 时别把插件塞进子目录 |
+
 ---
 
 ## persona-distill（人格蒸馏）

@@ -13,15 +13,26 @@
 
 ## 安装
 
-```bash
-dsh plugin --profile desktop add dsh-persona-memory
-```
+### 方式一：从本地目录装（推荐，最稳）
 
-本地开发：
+先把这个仓库弄到本地（`git clone` 或直接下载 ZIP 解压）：
 
 ```bash
-dsh plugin --profile desktop add link:/path/to/dsh-persona-memory
+git clone https://github.com/bailu974/deepseek-dsh-persona-memory.git
+dsh plugin --profile desktop add link:/path/to/deepseek-dsh-persona-memory
 ```
+
+### 方式二：`dsh plugin add <github 地址>`
+
+```bash
+dsh plugin --profile desktop add https://github.com/bailu974/deepseek-dsh-persona-memory
+```
+
+> ⚠️ 这条路要求本机装了 **git**。DSH 的插件安装底层走 pnpm，pnpm 拉 GitHub 仓库需要 git；
+> 没装 git 时会报找不到仓库/下载失败。装了 git 仍然失败的话，用方式一。
+>
+> 另外：**仓库根目录必须有 `package.json`**。如果你 fork 后把插件放进子目录（例如
+> `插件名/package.json`），从根目录安装就会「下载没发现」——这正是本仓库早期踩过的坑。
 
 装好后 profile 的 `dsh.profile.bundles` 会多出两项，对应两个可分别开关的插件：
 

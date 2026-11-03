@@ -5,7 +5,7 @@
 | 插件 | 干什么 | 何时动 |
 |---|---|---|
 | **persona-distill** | 人格蒸馏：把每天刷到的素材攒成候选，定期定型进 `AGENTS.md` 的「我学来的」 | 每天增量读素材，满周期定型 |
-| **persona-journal** | 日记：从聊天日志里挑出她**自己觉得有意思**的三件事，写进月度日记 | 每天一个时间点 |
+| **persona-journal** | 日记：从各渠道素材里挑出她**自己觉得有意思**的几件事，写进月度日记 | 每天一个时间点 |
 
 一句话：**记忆是「发生了什么」，人格是「我是谁」。中间放一份她自己筛过的日记，既不让人格被一次情绪带偏，也留住了她自己的视角。**
 
@@ -100,7 +100,7 @@ dsh plugin --profile desktop add https://github.com/bailu974/deepseek-dsh-person
   "dshBin": "",
   "overlayPath": "",
   "model": "",
-  "maxLines": 3,
+  "maxLines": 5,
   "maxSnippets": 120,
   "minSnippets": 5,
   "selfcheckWeekday": 1

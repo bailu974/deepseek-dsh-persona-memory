@@ -1,0 +1,56 @@
+{
+  "name": "dsh-persona-memory",
+  "version": "0.1.0",
+  "description": "DSH 插件：人格蒸馏 + 日记。原料天天攒、人格按周期定型，日记记她主观在意的几件事。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "persona",
+    "memory",
+    "journal",
+    "distill"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "journal": "node journal-cli.mjs"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./journal": "./journal.js",
+    "./journal-cli": "./journal-cli.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "journal.js",
+    "journal-cli.mjs",
+    "cordis.patch.yml",
+    "lib",
+    "prompts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "dsh": ">=0.1.7-rc.1",
+    "node": ">=22"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ]
+    }
+  }
+}

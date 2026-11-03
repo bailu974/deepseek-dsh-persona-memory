@@ -32,12 +32,18 @@ if (configPath) {
   }
 }
 
-const result = runJournal(cfg, {
-  date: valueOf('--date') || undefined,
-  dry: has('--dry'),
-  selfcheck: has('--selfcheck'),
-  log: (msg) => console.log(`[journal] ${msg}`),
-});
+let result;
+try {
+  result = runJournal(cfg, {
+    date: valueOf('--date') || undefined,
+    dry: has('--dry'),
+    selfcheck: has('--selfcheck'),
+    log: (msg) => console.log(`[journal] ${msg}`),
+  });
+} catch (error) {
+  console.error(`[journal] 失败：${error?.message ?? error}`);
+  process.exit(1);
+}
 
 // --dry 的用处就是看拼出来的 prompt，别只打印一行日志
 if (result.prompt) console.log(result.prompt);

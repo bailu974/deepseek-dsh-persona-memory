@@ -38,7 +38,7 @@ const DEFAULTS = {
   dshBin: '',
   overlayPath: '',
   model: '',
-  maxLines: 3,
+  maxLines: 5,
   maxSnippets: 120,
   maxSnippetsPerSource: 40,
   sources: [],

@@ -39,4 +39,7 @@ const result = runJournal(cfg, {
   log: (msg) => console.log(`[journal] ${msg}`),
 });
 
+// --dry 的用处就是看拼出来的 prompt，别只打印一行日志
+if (result.prompt) console.log(result.prompt);
+
 process.exit(result.ok ? 0 : 1);

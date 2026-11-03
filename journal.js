@@ -22,6 +22,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
+import { collectFromSources } from './lib/journal-sources.mjs';
+
 export const name = 'persona-journal';
 export const inject = ['webServer'];
 
@@ -38,6 +40,9 @@ const DEFAULTS = {
   model: '',
   maxLines: 3,
   maxSnippets: 120,
+  maxSnippetsPerSource: 40,
+  sources: [],
+  home: '',
   minSnippets: 5,
   selfcheckWeekday: 1,
 };
@@ -88,6 +93,12 @@ export function normalizeConfig(raw) {
   cfg.maxSnippets = Number.isFinite(Number(cfg.maxSnippets)) ? Math.max(5, Math.min(500, Number(cfg.maxSnippets))) : DEFAULTS.maxSnippets;
   cfg.minSnippets = Number.isFinite(Number(cfg.minSnippets)) ? Math.max(1, Number(cfg.minSnippets)) : DEFAULTS.minSnippets;
   cfg.selfcheckWeekday = Number.isInteger(Number(cfg.selfcheckWeekday)) ? Number(cfg.selfcheckWeekday) : DEFAULTS.selfcheckWeekday;
+  cfg.maxSnippetsPerSource = Number.isFinite(Number(cfg.maxSnippetsPerSource))
+    ? Math.max(1, Math.min(200, Number(cfg.maxSnippetsPerSource)))
+    : DEFAULTS.maxSnippetsPerSource;
+  cfg.sources = Array.isArray(cfg.sources) ? cfg.sources.filter((x) => x && typeof x === 'object') : [];
+  cfg.home = typeof cfg.home === 'string' ? cfg.home.trim() || path.join(dshHome(), '') : '';
+  if (!cfg.home) cfg.home = dshHome();
   for (const key of ['journalDir', 'fallbackJournalDir', 'snowlumaLogDir', 'bridgeConfigPath', 'dshExe', 'dshBin', 'overlayPath', 'model']) {
     cfg[key] = typeof cfg[key] === 'string' ? cfg[key].trim() : '';
   }
@@ -140,56 +151,12 @@ function allowedKeys(cfg) {
 }
 
 /** 从 SnowLuma 日志里抽当天的聊天片段（只取别人的话，不带媒体占位）。 */
-export function collectSnippets(cfg, date) {
-  if (!cfg.snowlumaLogDir) return [];
-  const file = path.join(cfg.snowlumaLogDir, `snowluma-${date}.log`);
-  if (!fs.existsSync(file)) return [];
-  const allow = allowedKeys(cfg);
-  const out = [];
-  const seen = new Set();
-  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
-    const m = /^(\d{2}:\d{2}:\d{2}).*?\[Event\]\s+(?:群 \[(.+?)\((\d+)\)\] \| \[.+?\((\d+)\)\]|私聊 \[.+?\((\d+)\)\]):\s*(.*)$/.exec(line);
-    if (!m) continue;
-    const groupName = m[2];
-    const groupId = m[3];
-    const senderId = m[4];
-    const privateId = m[5];
-    let text = m[6];
-    if (allow) {
-      const inWhitelist = groupId
-        ? allow.groups.has(groupId)
-        : allow.privates.has(privateId) || allow.privates.has(senderId);
-      if (!inWhitelist) continue;
-    }
-    text = text.replace(/^ID:\S+\s*/, '');
-    while (/^\[(回复|引用)/.test(text)) {
-      let depth = 0;
-      let end = -1;
-      for (let i = 0; i < text.length; i += 1) {
-        if (text[i] === '[') depth += 1;
-        else if (text[i] === ']') {
-          depth -= 1;
-          if (depth === 0) {
-            end = i;
-            break;
-          }
-        }
-      }
-      if (end < 0) break;
-      text = text.slice(end + 1).trimStart();
-    }
-    text = text
-      .replace(/@\d+/g, '')
-      .replace(/\[CQ:[^\]]*\]/g, '')
-      .replace(/\[(图片|表情|语音|视频|文件|动画表情|空消息|Markdown|转发消息[^\]]*)\]/g, '')
-      .trim();
-    if (!text || text.length < 2 || text.length > 100) continue;
-    if (seen.has(text)) continue;
-    seen.add(text);
-    out.push(`${m[1]} ${groupName ? `[${groupName}] ` : ''}${text}`);
-    if (out.length >= cfg.maxSnippets) break;
-  }
-  return out;
+/**
+ * 收集当天片段：交给多源层（QQ 日志 / inbox 手记 / 外部适配器）。
+ * 保留这个函数名是为了向后兼容与测试。
+ */
+export function collectSnippets(cfg, date, log = () => {}) {
+  return collectFromSources(cfg, date, log);
 }
 
 function stripNoise(s) {

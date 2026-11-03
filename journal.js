@@ -97,12 +97,17 @@ export function normalizeConfig(raw) {
     ? Math.max(1, Math.min(200, Number(cfg.maxSnippetsPerSource)))
     : DEFAULTS.maxSnippetsPerSource;
   cfg.sources = Array.isArray(cfg.sources) ? cfg.sources.filter((x) => x && typeof x === 'object') : [];
-  cfg.home = typeof cfg.home === 'string' ? cfg.home.trim() || path.join(dshHome(), '') : '';
-  if (!cfg.home) cfg.home = dshHome();
+  cfg.home = (typeof cfg.home === 'string' && cfg.home.trim()) || dshHome();
   for (const key of ['journalDir', 'fallbackJournalDir', 'snowlumaLogDir', 'bridgeConfigPath', 'dshExe', 'dshBin', 'overlayPath', 'model']) {
     cfg[key] = typeof cfg[key] === 'string' ? cfg[key].trim() : '';
   }
   return cfg;
+}
+
+/** 只读磁盘上的配置（不带默认值），用来判断用户改过什么。 */
+function readDiskConfig() {
+  const raw = readJson(configFile(), null);
+  return raw && typeof raw === 'object' ? raw : {};
 }
 
 /** 配置文件：<家>/persona-journal/config.json（存在就用它，缺字段回落到默认值）。 */
@@ -180,12 +185,24 @@ function runHeadless(cfg, prompt) {
   if (fs.existsSync(overlay)) args.push('--patch', overlay);
   if (cfg.model) args.push('--model', cfg.model);
   args.push(prompt);
-  const out = execFileSync(exe, args, {
-    encoding: 'utf8',
-    timeout: 180000,
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-  });
-  return stripNoise(out);
+  try {
+    const out = execFileSync(exe, args, {
+      encoding: 'utf8',
+      timeout: 180000,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return stripNoise(out);
+  } catch (error) {
+    // execFileSync 的 message 会把整条命令行（含 prompt 里的聊天片段）抄进来。
+    // 这里只留一行可读原因，避免把私聊内容写进 state.json / 日志。
+    const raw = String(error?.stderr || '') || String(error?.message || '');
+    const line = raw
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => /^dsh:\s|MISSING_CREDENTIAL|ACCOUNT_SIGN_IN_REQUIRED|Error:/.test(l)) || raw.split('\n').pop() || 'headless 失败';
+    throw new Error(line.slice(0, 300));
+  }
 }
 
 function buildDiaryPrompt(cfg, snippets) {
@@ -335,33 +352,50 @@ function writeState(patch) {
 
 /** 插件入口：装进 DSH 后自动按 runAt 每天跑一次（错过会补跑）。 */
 export function apply(ctx, config) {
-  const cfg = normalizeConfig(config ?? {});
+  // patch 里的 config 只是默认值；用户在设置页/配置文件里改的东西优先。
+  const cfg = normalizeConfig({ ...(config ?? {}), ...readDiskConfig() });
   if (!cfg.enabled) {
     ctx.logger?.info?.('persona-journal: 已禁用（enabled=false）');
     return;
   }
 
-  const log = (msg) => ctx.logger?.info?.(`persona-journal: ${msg}`) ?? console.log(`[journal] ${msg}`);
+  const log = (msg) => {
+    const line = `persona-journal: ${msg}`;
+    if (typeof ctx.logger?.info === 'function') ctx.logger.info(line);
+    else console.log(`[journal] ${msg}`);
+  };
 
-  const fire = (trigger) => {
+  let retryAfter = 0;
+
+  const fire = (live) => {
+    // 先认今天，避免连续失败时每分钟重试刷屏；失败后 30 分钟才允许再试。
+    writeState({ lastFiredDay: today(), lastRunAt: new Date().toISOString(), lastResult: 'running' });
     try {
-      const state = writeState({ lastFiredDay: today(), lastRunAt: new Date().toISOString(), lastResult: 'running' });
-      const r = runJournal(cfg, { log });
-      writeState({ ...state, lastResult: r.wrote ? 'wrote' : (r.reason ?? 'skipped'), lastFile: r.file ?? '' });
+      const r = runJournal(live, { log });
+      writeState({ lastResult: r.wrote ? 'wrote' : (r.reason ?? 'skipped'), lastFile: r.file ?? '', lastError: '' });
     } catch (error) {
-      log(`${trigger} 运行失败：${error?.message ?? error}`);
-      writeState({ lastResult: `error: ${error?.message ?? error}` });
+      log(`定时运行失败：${error?.message ?? error}`);
+      const reason = String(error?.message ?? error).slice(0, 300);
+      writeState({ lastResult: `error: ${reason}`, lastError: reason });
+      retryAfter = Date.now() + 30 * 60_000;
     }
   };
 
   const tick = () => {
+    // 每次 tick 重读配置：改 runAt / 目录不用重启。
+    const live = normalizeConfig({ ...(config ?? {}), ...readDiskConfig() });
+    if (!live.enabled) return;
     const now = new Date();
-    const [hh, mm] = cfg.runAt.split(':').map(Number);
-    const due = now.getHours() * 60 + now.getMinutes() >= hh * 60 + mm;
-    if (!due) return;
+    const [hh, mm] = live.runAt.split(':').map(Number);
+    if (now.getHours() * 60 + now.getMinutes() < hh * 60 + mm) return;
+
     const state = readState();
-    if (state.lastFiredDay === today()) return;
-    fire('定时');
+    if (state.lastFiredDay === today()) {
+      // 今天跑过：成功就不再跑；失败过的话，冷却结束后允许再试一次
+      if (!state.lastError) return;
+      if (Date.now() < retryAfter) return;
+    }
+    fire(live);
   };
 
   // 启动先补跑一次（昨天没跑成的话今天开机就补），再每分钟检查。
@@ -372,10 +406,12 @@ export function apply(ctx, config) {
 
   const webServer = ctx.get?.('webServer') ?? ctx.webServer;
   if (webServer && typeof webServer.register === 'function') {
-    webServer.register({
+    try {
+      ctx.effect?.(() => webServer.register({
       kind: 'prefix',
       path: '/api/persona-journal',
       handler: async (req, res) => {
+        try {
         const url = new URL(req.url ?? '/', 'http://localhost');
         const send = (code, body) => {
           res.statusCode = code;
@@ -412,8 +448,18 @@ export function apply(ctx, config) {
           return;
         }
         send(404, { ok: false, error: 'not found' });
+        } catch (error) {
+          try {
+            res.statusCode = 500;
+            res.setHeader('content-type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ ok: false, error: String(error?.message ?? error) }));
+          } catch { /* 响应已经发过了 */ }
+        }
       },
-    });
+      }), 'persona-journal: /api/persona-journal 路由');
+    } catch (error) {
+      log(`HTTP 路由没挂上：${error?.message ?? error}`);
+    }
   }
 }
 

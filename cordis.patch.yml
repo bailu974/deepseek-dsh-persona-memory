@@ -39,3 +39,21 @@
         # headless 跑模型用的 DSH 可执行文件与 bin.js；留空则读环境变量 DSH_EXE / DSH_BIN
         dshExe: ''
         dshBin: ''
+        # 素材渠道。留空 = 只读 snowlumaLogDir（兼容旧配置）。
+        # 想做「不分渠道」就显式列出来：
+        #
+        # sources:
+        #   - type: snowluma-log          # QQ 聊天
+        #     dir: 'E:/SnowLuma/logs'
+        #     bridgeConfigPath: 'E:/ai/qq-bridge/config.json'
+        #     limit: 40
+        #   - type: external              # B站手账等，复用 distill 的适配器
+        #     adapter: bili-journal
+        #     label: 'B站'
+        #   - type: inbox                 # 干活时手写的手记
+        #     dir: '<家>/work-inbox'
+        #     label: '工作'
+        #     markerOnly: true            # 只取 <!-- diary --> ... <!-- /diary --> 之间
+        #     enabled: false              # 默认关，想开再打开
+        sources: []
+        maxSnippetsPerSource: 40

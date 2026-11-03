@@ -3,6 +3,7 @@ node_modules/
 last-run.txt
 .DS_Store
 
-# 本地跑日记的落盘 / 临时配置
+# 本地跑日记的落盘 / 临时配置（别把私人日记提交上去）
 .test-journal/
 persona-journal/
+journal/

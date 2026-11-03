@@ -177,6 +177,21 @@ node journal-cli.mjs --config my.json   # 用指定配置
 
 完整规则见 `prompts/distill.md`。
 
+### 日记会自动变成蒸馏源
+
+只要日记在写，蒸馏运行时会把它同步成 `external-persona-journal` 这个源（复用外部源适配器），于是这条链是通的：
+
+```
+聊天 / 手账 / 工作手记 → 片段 → 她挑几件 → 日记 → 蒸馏定型人格
+```
+
+细节：
+
+- 日记目录取 `persona-journal/config.json` 里配的 `journalDir`，没配就用 `<家>/persona/journal`
+- 同步产物：`source.json` + `digest/persona-journal.md`（每条日记一行）
+- `voice.md` 会写一句「这个外部源不产说话样本」——**必须存在**，否则蒸馏的「源读不出来 → 禁止定型」降级保护会整轮罢工
+- 日记不产「认识的修正 / 下一次如何回应」，所以 `notes.md` 里没有可摘的结论，这是正常的
+
 ---
 
 ## 目录结构

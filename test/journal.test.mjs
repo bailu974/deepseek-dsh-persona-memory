@@ -14,7 +14,7 @@ function tmpDir(tag) {
 test('normalizeConfig：坏值都有兜底', () => {
   const cfg = normalizeConfig({ runAt: '99:99', maxLines: 'x', maxSnippets: 1, minSnippets: -3 });
   assert.equal(cfg.runAt, '23:50');
-  assert.equal(cfg.maxLines, 3);
+  assert.equal(cfg.maxLines, 5);
   assert.equal(cfg.maxSnippets, 5);
   assert.equal(cfg.minSnippets, 1);
   assert.equal(cfg.enabled, true);

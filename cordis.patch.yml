@@ -59,3 +59,28 @@
         maxSnippetsPerSource: 40
         # 每天最多写几行（1~10，默认 5）
         maxLines: 5
+
+    - id: life-memory
+      name: dsh-persona-memory/life-memory
+      config:
+        # 用户配置在 <家>/life-memory/config.json（首次运行写默认值）
+        enabled: true
+        # 线索库位置；留空 = <家>/life-memory/memory.db
+        dbPath: ''
+        # 一次 recall 最多取几条线索、拼多长
+        limit: 5
+        maxPromptChars: 1800
+        autoForget: true
+        # 超过这个 token 就开始遗忘
+        forgetThresholdTokens: 20000
+        # 单次最多切几轮（200 = 一次砍到位）
+        forgetTurns: 200
+        # 最近这么多轮永远保留
+        keepCompletedTurns: 5
+        # 哪些会话走激进策略（JSON，能被递归扫出 session-xxx id 即可）。
+        # 留空 = 全部用上面的默认值；想区分就把会话 id 列进去：
+        #   sessionsFile: 'E:/ai/qq-bridge/state/sessions.json'
+        #   qqPolicy:
+        #     aggressive: { forgetThresholdTokens: 20000, forgetTurns: 200, keepCompletedTurns: 5 }
+        #     gentle:     { forgetThresholdTokens: 60000, forgetTurns: 10, keepCompletedTurns: 20 }
+        sessionsFile: ''

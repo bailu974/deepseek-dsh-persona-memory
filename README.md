@@ -1,14 +1,13 @@
 # dsh-persona-memory
 
-给 [DeepSeek Harness](https://github.com/deepseek-ai) 用的三个互补插件，打在一个包里：
+给 [DeepSeek Harness](https://github.com/deepseek-ai) 用的两个互补插件，打在一个包里：
 
 | 插件 | 干什么 | 何时动 |
 |---|---|---|
 | **persona-distill** | 人格蒸馏：把每天刷到的素材攒成候选，定期定型进 `AGENTS.md` 的「我学来的」 | 每天增量读素材，满周期定型 |
 | **persona-journal** | 日记：从各渠道素材里挑出她**自己觉得有意思**的几件事，写进月度日记 | 每天一个时间点 |
-| **life-memory** | 会遗忘的记忆：上下文放不下时把旧轮次折成关键词线索、从历史切除，需要时顺着线索回想 | 会话超阈值就折 |
 
-一句话：**记忆是「发生了什么」，人格是「我是谁」，遗忘是「什么该被放下」。三层各管一段，不互相污染。**
+一句话：**记忆是「发生了什么」，人格是「我是谁」。中间放一份她自己筛过的日记，既不让人格被一次情绪带偏，也留住了她自己的视角。**
 
 ---
 
@@ -214,65 +213,6 @@ node journal-cli.mjs --config my.json   # 用指定配置
 
 ---
 
-## life-memory（会遗忘的记忆）
-
-上下文放不下的时候，把最旧的几轮对话蒸馏成关键词线索，**从历史里物理删除**；
-之后再提起那件事，顺着线索用 `recall_from_clues` 把记忆重新长出来。
-
-```
-上下文 ≤ 阈值        什么都不做
-上下文 > 阈值
-  → 挑最旧的「已完成」轮次
-  → 抽关键词 + 线索种子，写进本地 SQLite
-  → 那段历史替换成一条「记忆已折叠」提示
-  → 需要时 recall_from_clues(关键词) 顺着线索回想
-```
-
-线索库默认在 `<家>/life-memory/memory.db`，不联网、不外传。
-
-### 这个版本修了什么
-
-思路来自 [`@tuhengyu/dsh-full-life-memory`](https://www.npmjs.com/package/@tuhengyu/dsh-full-life-memory)（MIT）。
-实际跑下来发现几个**会让机制彻底失效**的问题，都已修掉：
-
-| # | 问题 | 后果 | 修法 |
-|---|---|---|---|
-| 1 | 选区间时挑「事件日志里最旧的轮次」，但它们上次折叠时已被整段替换 | **每个会话只会折叠一次**，之后上下文无限增长（实测单步到 68 万 token） | 先算「surface 上还真实存在的轮次」，再从中挑最旧的 |
-| 2 | `forgetTurns` 被内部 clamp 成 10 | 配多大都只能切 10 轮 | 上限放宽到 200 |
-| 3 | 估算按 `chars / 3` 算 token | 中文低估约 1.8 倍，永远算不够，把能切的都切光 | 改成 `chars × 0.6` |
-| 4 | 一次只切固定轮数 | 每轮都触发折叠，缓存刚建立就被冲掉 | 按「还差多少」累计，一次压回阈值以下 |
-| 5 | 全局一套参数 | QQ 和桌面会话需求相反 | 支持按会话分策略 |
-
-### 按会话分策略
-
-```yaml
-sessionsFile: 'E:/ai/qq-bridge/state/sessions.json'   # 能认出哪些 session 走激进策略的 JSON（旧名 qqSessionsFile 仍可用）
-qqPolicy:
-  aggressive:                                    # 列表里的会话：一次砍到阈值、只留 5 轮
-    forgetThresholdTokens: 20000
-    forgetTurns: 200
-    keepCompletedTurns: 5
-  gentle:                                        # 其它全部：阈值更高、留更多轮
-    forgetThresholdTokens: 60000
-    forgetTurns: 10
-    keepCompletedTurns: 20
-```
-
-**不只 QQ**：刷 B 站、刷微博、定时任务这些插件跑在各自的会话里，默认走 `gentle`；
-想让它们也压狠一点，把对应的 session id 加进同一个文件即可，不用改代码。
-
-### 工具：`recall_from_clues`
-
-```
-recall_from_clues(keyword)   # 给一个具体词比整句好
-```
-
-- 只读本地 SQLite，返回一段**重建的记忆提示**，不是原文
-- 最多 `limit` 条线索、`maxPromptChars` 字符；找不到返回 `found: false`
-- ⚠️ 在「工具白名单」环境（如 QQ 桥接）里要把它加进执行期白名单，否则会出现「看得见、一调就被拒」
-
----
-
 ## 目录结构
 
 ```
@@ -281,7 +221,6 @@ dsh-persona-memory/
 ├── client.js           # persona-distill 的设置页
 ├── journal.js          # persona-journal 插件（定时 + HTTP + 可复用 runJournal）
 ├── journal-cli.mjs     # 日记命令行入口
-├── life-memory/        # 会遗忘的记忆：折叠 + 线索 + recall 工具
 ├── lib/                # distill 的内部模块
 ├── prompts/            # 蒸馏用的提示词模板
 ├── cordis.patch.yml    # 一个包里挂两个插件
@@ -310,5 +249,3 @@ MIT。
 - 把定型周期做成可配置
 
 日记部分（`journal.js` / `journal-cli.mjs`）为本仓库新增。
-
-`life-memory` 部分源自 [@tuhengyu/dsh-full-life-memory](https://www.npmjs.com/package/@tuhengyu/dsh-full-life-memory)（MIT，作者 tuhengyu），本仓库修复了上面列出的 5 个问题并补了测试。

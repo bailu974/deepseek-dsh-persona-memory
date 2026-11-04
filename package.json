@@ -1,7 +1,7 @@
 {
   "name": "dsh-persona-memory",
-  "version": "0.1.0",
-  "description": "DSH 插件：人格蒸馏 + 日记。原料天天攒、人格按周期定型，日记记她主观在意的几件事。",
+  "version": "1.1.0",
+  "description": "DSH 插件合集：人格蒸馏 + 日记 + 会遗忘的记忆",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -9,7 +9,9 @@
     "persona",
     "memory",
     "journal",
-    "distill"
+    "distill",
+    "forget",
+    "recall"
   ],
   "license": "MIT",
   "type": "module",
@@ -23,13 +25,15 @@
     "./client": "./client.js",
     "./journal": "./journal.js",
     "./journal-cli": "./journal-cli.mjs",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./life-memory": "./life-memory/index.js"
   },
   "files": [
     "index.js",
     "client.js",
     "journal.js",
     "journal-cli.mjs",
+    "life-memory",
     "cordis.patch.yml",
     "lib",
     "prompts",
